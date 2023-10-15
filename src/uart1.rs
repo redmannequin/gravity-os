@@ -1,5 +1,5 @@
 use crate::{
-    gpio::{GpioPin, PinFunction, PullState},
+    gpio::{PinFunction, PullState, GPIO},
     mmio_read, mmio_write, wait_cycles,
 };
 
@@ -49,10 +49,10 @@ pub fn init(clock_rate: u32, baud_rate: u32) {
     mmio_write(AUX_MU_IIR_REG, 0xC6);
     mmio_write(AUX_MU_BAUD_REG, clock_rate / (baud_rate * 8) - 1);
 
-    GpioPin::Pin14
+    GPIO::Pin14
         .set_pub_ctr(PullState::None)
         .set_fsel(PinFunction::AltFn5);
-    GpioPin::Pin15
+    GPIO::Pin15
         .set_pub_ctr(PullState::None)
         .set_fsel(PinFunction::AltFn5);
 

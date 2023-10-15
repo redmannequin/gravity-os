@@ -171,10 +171,10 @@ mod gpio_fsel_registers {
     }
 }
 
-/// the set of GPIO pins
+/// provides basic functions to set,get,write, and read the GPIO pins.
 /// https://pinout.xyz/
 #[derive(Debug, Clone, Copy)]
-pub enum GpioPin {
+pub enum GPIO {
     Pin0,
     Pin1,
     Pin2,
@@ -223,80 +223,78 @@ pub enum GpioPin {
     Pin26,
 }
 
-impl GpioPin {
-    pub fn set_fsel(self, func: PinFunction) -> Self {
-        GPIO::set_fsel(self, func);
-        self
-    }
-
-    pub fn set_pub_ctr(self, state: PullState) -> Self {
-        GPIO::set_pud_ctr(self, state);
-        self
-    }
-
-    pub fn get_pud_ctr_state(self) -> PullState {
-        GPIO::get_pud_ctr_state(self)
-    }
-}
-
-/// provides basic functions to set,get,write, and read the GPIO pins.
-pub struct GPIO;
-
 impl GPIO {
     /// set the FSEL of the given GPIO Pin
-    pub fn set_fsel(pin: GpioPin, func: PinFunction) {
-        let value = func.value();
-        let fsel = GPIO::get_fsel_reg(pin);
-        let shift = (pin as u32 % 10) * 3;
-        let clear_mask: u32 = 0b111 << shift;
-        let val = (mmio_read(fsel) & !clear_mask) | (value << shift);
-        mmio_write(fsel, val);
+    pub fn set_fsel(self, func: PinFunction) -> Self {
+        set_fsel(self, func);
+        self
     }
 
     /// set the Pull Up/Down State of the given GPIO Pin
-    pub fn set_pud_ctr(pin: GpioPin, state: PullState) {
-        let value = state.vaule();
-        let pud_ctr = GPIO::get_pud_ctr_reg(pin);
-        let shift = (pin as u32 % 16) * 2;
-        let clear_mask: u32 = 0b11 << shift;
-        let val = (mmio_read(pud_ctr) & !clear_mask) | (value << shift);
-        mmio_write(pud_ctr, val);
+    pub fn set_pub_ctr(self, state: PullState) -> Self {
+        set_pud_ctr(self, state);
+        self
     }
 
     /// get the Pull Up/Down State of the given GPIO Pin
-    pub fn get_pud_ctr_state(pin: GpioPin) -> PullState {
-        let register = GPIO::get_pud_ctr_reg(pin);
-        let shift = (pin as u32 % 16) * 2;
-        let mask: u32 = 0b11 << shift;
-        let val = (mmio_read(register) & mask) >> shift;
-        match val {
-            0b00 => PullState::None,
-            0b01 => PullState::Up,
-            0b10 => PullState::Down,
-            _ => PullState::Rsvd,
-        }
+    pub fn get_pud_ctr_state(self) -> PullState {
+        get_pud_ctr_state(self)
     }
+}
 
-    /// get the Pull Up/Down register for the given GPIO Pin
-    const fn get_pud_ctr_reg(pin: GpioPin) -> u32 {
-        const PUD_CTR_LOOKUP: [u32; 3] = [
-            gpio_pud_ctr_registers::PUD_CTR0,
-            gpio_pud_ctr_registers::PUD_CTR1,
-            gpio_pud_ctr_registers::PUD_CTR2,
-        ];
-        // `N >> 4` is equivalent to dividing by 16
-        PUD_CTR_LOOKUP[(pin as usize) >> 4]
-    }
+/// set the FSEL of the given GPIO Pin
+fn set_fsel(pin: GPIO, func: PinFunction) {
+    let value = func.value();
+    let fsel = get_fsel_reg(pin);
+    let shift = (pin as u32 % 10) * 3;
+    let clear_mask: u32 = 0b111 << shift;
+    let val = (mmio_read(fsel) & !clear_mask) | (value << shift);
+    mmio_write(fsel, val);
+}
 
-    /// get the Function Select register for the given GPIO Pin
-    const fn get_fsel_reg(pin: GpioPin) -> u32 {
-        const FSEL_LOOKUP: [u32; 4] = [
-            gpio_fsel_registers::FSEL0,
-            gpio_fsel_registers::FSEL1,
-            gpio_fsel_registers::FSEL2,
-            gpio_fsel_registers::FSEL3,
-        ];
-        // `(N * 13) >> 7` correctly divided by 10 until 69
-        FSEL_LOOKUP[((pin as usize) * 13) >> 7]
+/// set the Pull Up/Down State of the given GPIO Pin
+fn set_pud_ctr(pin: GPIO, state: PullState) {
+    let value = state.vaule();
+    let pud_ctr = get_pud_ctr_reg(pin);
+    let shift = (pin as u32 % 16) * 2;
+    let clear_mask: u32 = 0b11 << shift;
+    let val = (mmio_read(pud_ctr) & !clear_mask) | (value << shift);
+    mmio_write(pud_ctr, val);
+}
+
+/// get the Pull Up/Down State of the given GPIO Pin
+fn get_pud_ctr_state(pin: GPIO) -> PullState {
+    let register = get_pud_ctr_reg(pin);
+    let shift = (pin as u32 % 16) * 2;
+    let mask: u32 = 0b11 << shift;
+    let val = (mmio_read(register) & mask) >> shift;
+    match val {
+        0b00 => PullState::None,
+        0b01 => PullState::Up,
+        0b10 => PullState::Down,
+        _ => PullState::Rsvd,
     }
+}
+
+/// get the Pull Up/Down register for the given GPIO Pin
+const fn get_pud_ctr_reg(pin: GPIO) -> u32 {
+    const PUD_CTR_LOOKUP: [u32; 3] = [
+        gpio_pud_ctr_registers::PUD_CTR0,
+        gpio_pud_ctr_registers::PUD_CTR1,
+        gpio_pud_ctr_registers::PUD_CTR2,
+    ];
+    // `N >> 4` is equivalent to dividing by 16
+    PUD_CTR_LOOKUP[(pin as usize) >> 4]
+}
+
+/// get the Function Select register for the given GPIO Pin
+const fn get_fsel_reg(pin: GPIO) -> u32 {
+    const FSEL_LOOKUP: [u32; 4] = [
+        gpio_fsel_registers::FSEL0,
+        gpio_fsel_registers::FSEL1,
+        gpio_fsel_registers::FSEL2,
+        gpio_fsel_registers::FSEL3,
+    ];
+    // `(N * 13) >> 7` correctly divided by 10 until 69
+    FSEL_LOOKUP[((pin as usize) * 13) >> 7]
 }
