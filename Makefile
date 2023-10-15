@@ -1,0 +1,7 @@
+default: build
+
+build:
+	rm -f ./kernel/kernel8.img
+	rm -rf target
+	cargo rustc --bin gravity-os --release -- -C link-arg=--script=./linker.ld
+	aarch64-none-elf-objcopy -O binary target/aarch64-unknown-none/release/gravity-os kernel8.img
