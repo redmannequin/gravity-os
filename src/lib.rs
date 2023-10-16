@@ -3,6 +3,7 @@ use core::{arch::asm, ptr};
 
 pub mod boot;
 pub mod gpio;
+pub mod mbox;
 pub mod uart1;
 
 pub const MMIO_BASE_RPI_3: u32 = 0x3F00_0000;

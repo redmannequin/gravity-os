@@ -62,7 +62,7 @@ pub fn init(clock_rate: u32, baud_rate: u32) {
 }
 
 pub fn send_char(ch: char) {
-    while (mmio_read(AUX_MU_LSR_REG) & 0x20) != 0 {
+    while (mmio_read(AUX_MU_LSR_REG) & 0x20) == 0 {
         wait_cycles(10);
     }
     mmio_write(AUX_MU_IO_REG, ch as _);

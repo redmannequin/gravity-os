@@ -2,17 +2,18 @@
 #![no_main]
 use core::panic::PanicInfo;
 
-use gravity_os::{uart1, wait_cycles};
+use gravity_os::{mbox::Mailbox, uart1, wait_cycles};
 
 #[link_section = ".text._kernel"]
 #[no_mangle]
 pub extern "C" fn _kernel() -> ! {
-    uart1::init(50_000_000, 115200);
-    uart1::send_str("Hello world\n");
+    uart1::init(48000000, 115200);
+    uart1::send_str("hello world\n");
     wait_cycles(150);
+    Mailbox::init_frame_buffer();
     loop {
         wait_cycles(100_000_000);
-        uart1::send_str("test n\n");
+        uart1::send_str("test\n");
     }
 }
 
