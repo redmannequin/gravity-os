@@ -41,11 +41,13 @@ use register::*;
 
 pub fn init(clock_rate: u32, baud_rate: u32) {
     mmio_write(AUX_ENABLES, 0x01);
-    mmio_write(AUX_MU_IER_REG, 0x00);
+
     mmio_write(AUX_MU_CNTL_REG, 0x00);
+    mmio_write(AUX_MU_IER_REG, 0x00);
     mmio_write(AUX_MU_LCR_REG, 0x03);
     mmio_write(AUX_MU_MCR_REG, 0x00);
     mmio_write(AUX_MU_IER_REG, 0x00);
+
     mmio_write(AUX_MU_IIR_REG, 0xC6);
     mmio_write(AUX_MU_BAUD_REG, clock_rate / (baud_rate * 8) - 1);
 

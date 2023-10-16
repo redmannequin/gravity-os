@@ -52,7 +52,7 @@ mod gpio_pud_ctr_registers {
     //! ----------------
     //! Pull State Map
     //! ----------------
-    //! With 3-bits of informations the maximum supported states is 4.
+    //! With 2-bits of informations the maximum supported states is 4.
     //!
     //! +-------+-----+
     //! | State | Val |

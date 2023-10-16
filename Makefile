@@ -1,5 +1,8 @@
 default: build
 
+dump: build
+	aarch64-none-elf-objdump -D ./target/aarch64-unknown-none/release/gravity-os > dump
+
 build:
 	rm -f ./kernel/kernel8.img
 	rm -rf target
