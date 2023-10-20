@@ -31,65 +31,18 @@ pub const TAG_LAST: u32 = 0x0;
 
 #[repr(C, align(16))]
 pub struct A16<const N: usize> {
-    inner: [u32; N],
+    pub inner: [u32; N],
+}
+
+impl<const N: usize> A16<N> {
+    pub fn new(inner: [u32; N]) -> Self {
+        Self { inner }
+    }
 }
 
 pub struct Mailbox;
 
 impl Mailbox {
-    pub fn init_frame_buffer() {
-        let frame_buffer_msg: A16<35> = A16 {
-            inner: [
-                35 * 4,
-                MSG_STATE_REQ,
-                TAG_SET_PHY_WH,
-                8,
-                0,
-                1920,
-                1080,
-                TAG_SET_VIRT_WH,
-                8,
-                0,
-                1920,
-                1080,
-                TAG_SET_VIRT_OFF,
-                8,
-                0,
-                0,
-                0,
-                TAG_SET_DEPTH,
-                4,
-                0,
-                16,
-                TAG_SET_PXL_ORDER,
-                4,
-                0,
-                1,
-                TAG_ALLOCATE_FB,
-                8,
-                0,
-                4,
-                0,
-                TAG_GET_PITCH,
-                4,
-                0,
-                0,
-                TAG_LAST,
-            ],
-        };
-        let fb = Mailbox::send_msg(ARM2VC, frame_buffer_msg);
-
-        let fb_ptr = fb.inner[28];
-        let fb_pitch = fb.inner[33];
-
-        for x in 100..200 {
-            for y in 100..200 {
-                let ptr = fb_ptr as *mut u16;
-                unsafe { core::ptr::write_volatile(ptr.offset((x + (y * fb_pitch)) as _), 0xff) }
-            }
-        }
-    }
-
     pub fn get_firmware_rev() {
         let request = A16 {
             inner: [6 * 4, MSG_STATE_REQ, TAG_GET_FRIMWARE_REV, 4, 0, TAG_LAST],
@@ -97,7 +50,7 @@ impl Mailbox {
         Self::send_msg(ARM2VC, request);
     }
 
-    fn send_msg<const N: usize>(ch: u8, msg: A16<N>) -> A16<N> {
+    pub fn send_msg<const N: usize>(ch: u8, msg: A16<N>) -> A16<N> {
         let msg_ptr = {
             let mbox_address: *const A16<N> = &msg;
             let mbox_address_int = mbox_address as usize;

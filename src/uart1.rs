@@ -1,3 +1,5 @@
+use core::fmt;
+
 use crate::{
     gpio::{PinFunction, PullState, GPIO},
     mmio_read, mmio_write, wait_cycles,
@@ -39,40 +41,51 @@ pub mod register {
 
 use register::*;
 
-pub fn init(clock_rate: u32, baud_rate: u32) {
-    mmio_write(AUX_ENABLES, 0x01);
+pub struct UART1;
 
-    mmio_write(AUX_MU_CNTL_REG, 0x00);
-    mmio_write(AUX_MU_IER_REG, 0x00);
-    mmio_write(AUX_MU_LCR_REG, 0x03);
-    mmio_write(AUX_MU_MCR_REG, 0x00);
-    mmio_write(AUX_MU_IER_REG, 0x00);
-
-    mmio_write(AUX_MU_IIR_REG, 0xC6);
-    mmio_write(AUX_MU_BAUD_REG, clock_rate / (baud_rate * 8) - 1);
-
-    GPIO::Pin14
-        .set_pub_ctr(PullState::None)
-        .set_fsel(PinFunction::AltFn5);
-    GPIO::Pin15
-        .set_pub_ctr(PullState::None)
-        .set_fsel(PinFunction::AltFn5);
-
-    mmio_write(AUX_MU_CNTL_REG, 0x03);
-}
-
-pub fn send_char(ch: char) {
-    while (mmio_read(AUX_MU_LSR_REG) & 0x20) == 0 {
-        wait_cycles(10);
+impl fmt::Write for UART1 {
+    fn write_str(&mut self, s: &str) -> fmt::Result {
+        UART1::send_str(s);
+        Ok(())
     }
-    mmio_write(AUX_MU_IO_REG, ch as _);
 }
 
-pub fn send_str(s: &str) {
-    for ch in s.chars() {
-        if ch == '\n' {
-            send_char('\r');
+impl UART1 {
+    pub fn init(clock_rate: u32, baud_rate: u32) {
+        mmio_write(AUX_ENABLES, 0x01);
+
+        mmio_write(AUX_MU_CNTL_REG, 0x00);
+        mmio_write(AUX_MU_IER_REG, 0x00);
+        mmio_write(AUX_MU_LCR_REG, 0x03);
+        mmio_write(AUX_MU_MCR_REG, 0x00);
+        mmio_write(AUX_MU_IER_REG, 0x00);
+
+        mmio_write(AUX_MU_IIR_REG, 0xC6);
+        mmio_write(AUX_MU_BAUD_REG, clock_rate / (baud_rate * 8) - 1);
+
+        GPIO::Pin14
+            .set_pub_ctr(PullState::None)
+            .set_fsel(PinFunction::AltFn5);
+        GPIO::Pin15
+            .set_pub_ctr(PullState::None)
+            .set_fsel(PinFunction::AltFn5);
+
+        mmio_write(AUX_MU_CNTL_REG, 0x03);
+    }
+
+    pub fn send_char(ch: char) {
+        while (mmio_read(AUX_MU_LSR_REG) & 0x20) == 0 {
+            wait_cycles(10);
         }
-        send_char(ch);
+        mmio_write(AUX_MU_IO_REG, ch as _);
+    }
+
+    pub fn send_str(s: &str) {
+        for ch in s.chars() {
+            if ch == '\n' {
+                UART1::send_char('\r');
+            }
+            UART1::send_char(ch);
+        }
     }
 }
