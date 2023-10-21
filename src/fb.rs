@@ -46,10 +46,15 @@ pub fn init_fb(width: u32, height: u32) -> FrameBuffer {
     ]);
     let fb = Mailbox::send_msg(ARM2VC, frame_buffer_msg);
 
-    let fb_ptr = fb.inner[28];
+    println!("msg status: {:#010x}", fb.inner[1]);
+    println!("fb status: {:#010x}", fb.inner[27]);
+    println!("fb size: {}", fb.inner[29]);
+
+    let fb_ptr = fb.inner[28] & 0x3FFFFFFF;
     let fb_pitch = fb.inner[33];
 
-    println!("pitch: {}", fb_pitch);
+    println!("fb ptr: {:#010x}", fb_ptr);
+    println!("fb pitch: {}", fb_pitch);
 
     FrameBuffer {
         ptr: fb_ptr,
@@ -65,15 +70,17 @@ pub struct FrameBuffer {
 }
 
 pub fn run(fb: &mut FrameBuffer) {
-    for x in 1..(fb.width - 1) {
-        for y in 1..(fb.height - 1) {
+    for y in 0..fb.height {
+        let y_offset = y * fb.width;
+        for x in 0..fb.width {
             let ptr = fb.ptr as *mut u32;
-            let offset = (x + (y * fb.width)) as _;
-            unsafe { core::ptr::write_volatile(ptr.offset(offset), pixel(x as _, y as _, 0)) }
+            let offset = (x + y_offset) as _;
+            let pixel = pixel(0, y as _, x as _);
+            unsafe { core::ptr::write_volatile(ptr.offset(offset), pixel) }
         }
     }
 }
 
 pub fn pixel(r: u8, g: u8, b: u8) -> u32 {
-    r as u32 | ((g as u32) << 8) | ((b as u32) << 16)
+    b as u32 | ((g as u32) << 8) | ((r as u32) << 16)
 }
