@@ -27,3 +27,28 @@ pub fn wait_cycles(n: u32) {
         }
     }
 }
+
+#[derive(Debug, Clone, Copy)]
+pub struct Instan {
+    pub tick: u32,
+}
+
+impl Instan {
+    pub fn now() -> Self {
+        let tick: u32;
+        unsafe { asm!("mrs {0:x}, cntpct_el0", out(reg) tick) }
+        Self { tick }
+    }
+
+    pub fn ticks_elapsed(self) -> u32 {
+        let curr_tick = Instan::now();
+        curr_tick.tick - self.tick
+    }
+
+    pub fn ms_elapsed(self) -> u32 {
+        let ticks_elapsed = self.ticks_elapsed();
+        let freq: u32;
+        unsafe { asm!("mrs {0:x}, cntfrq_el0", out(reg) freq) };
+        (ticks_elapsed * 1000 * 1000) / freq
+    }
+}

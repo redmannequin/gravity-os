@@ -1,30 +1,38 @@
-.section ".text.boot"  // Make sure the linker puts this at the start of the kernel image
+.section ".text.boot"
 
-.global _start  // Execution starts here
+.global _start
 
 _start:
-    // Check processor ID is zero (executing on main core), else hang
-    mrs     x1, mpidr_el1
-    and     x1, x1, #3
-    cbz     x1, 2f
-    // We're not on the main core, so hang in an infinite wait loop
-1:  wfe
-    b       1b
-2:  // We're on the main core!
+    // check cpu ID is zero (executing on main core), else hang
+    mrs     x0, mpidr_el1   // copy cpu affienity data 
+    and     x0, x0, #3      // get the lower 2 bits which contain the cpu id 
+    cbz     x0, .master     // if cpu id is 0 run master
+    b       .wait_for_event // otherwise run wait_for_event
 
-    // Set stack to start below our code
-    ldr     x1, =_start
-    mov     sp, x1
+// we're not on the main core, so wait for an event
+.wait_for_event:
+    wfe
+    b       .wait_for_event
 
-    // Clean the BSS section
-    ldr     x1, =__bss_start     // Start address
-    ldr     w2, =__bss_size      // Size of the section
-3:  cbz     w2, 4f               // Quit loop if zero
-    str     xzr, [x1], #8
-    sub     w2, w2, #1
-    cbnz    w2, 3b               // Loop if non-zero
+// we're on the main core
+.master:
+    // clean the BSS section
+    ldr     x0, =__bss_start    // load __bss_start to x0
+    ldr     x1, =__bss_size     // load __bss_size to x1
+    bl      memzero             // run memzero with x0 and x1
 
-    // Jump to our main() routine in C (make sure it doesn't return)
-4:  bl      _kernel
-    // In case it does return, halt the master core too
-    b       1b
+    // set stack to start below our code
+    ldr     x0, =_start // load _start to x0
+    mov     sp, x0      // set stack pointer under _start
+    
+    // jump to our _kernel() routin
+    bl      _kernel         // run _kernel
+    b       .wait_for_event // the _kernel should not return but if it does .wait_for_event
+
+.globl memzero
+// clears data from x0 with size x1
+memzero:
+    str     xzr, [x0], #8   // write zero byte to x0 addr and incrment x0 by a byte
+    subs    x1, x1, #8      // subtract a byte from x1
+    b.gt    memzero         // check if x1 is zero if not run memzero
+    ret                     // otherwise return

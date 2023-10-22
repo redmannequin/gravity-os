@@ -50,7 +50,7 @@ pub fn init_fb(width: u32, height: u32) -> FrameBuffer {
     println!("fb status: {:#010x}", fb.inner[27]);
     println!("fb size: {}", fb.inner[29]);
 
-    let fb_ptr = fb.inner[28] & 0x3FFFFFFF;
+    let fb_ptr = (fb.inner[28] | 0x40000000) & 0x3FFFFFFF;
     let fb_pitch = fb.inner[33];
 
     println!("fb ptr: {:#010x}", fb_ptr);
@@ -69,13 +69,13 @@ pub struct FrameBuffer {
     pub height: u32,
 }
 
-pub fn run(fb: &mut FrameBuffer) {
+pub fn render_gradient(fb: &mut FrameBuffer, x_color_offset: u32, y_color_offset: u32) {
     for y in 0..fb.height {
         let y_offset = y * fb.width;
         for x in 0..fb.width {
             let ptr = fb.ptr as *mut u32;
             let offset = (x + y_offset) as _;
-            let pixel = pixel(0, y as _, x as _);
+            let pixel = pixel(0, (y + y_color_offset) as _, (x + x_color_offset) as _);
             unsafe { core::ptr::write_volatile(ptr.offset(offset), pixel) }
         }
     }
