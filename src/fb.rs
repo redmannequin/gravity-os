@@ -1,57 +1,38 @@
 use crate::{
     mailbox::{
-        Mailbox, A16, ARM2VC, MSG_STATE_REQ, TAG_ALLOCATE_FB, TAG_GET_PITCH, TAG_LAST,
-        TAG_SET_DEPTH, TAG_SET_PHY_WH, TAG_SET_PXL_ORDER, TAG_SET_VIRT_OFF, TAG_SET_VIRT_WH,
+        message::Message,
+        tag::Tag,
+        tags::framebuffer::{
+            AllocateBufferRequest, AllocateBufferResponse, ColorDepth, GetPitchRequest,
+            GetPitchResponse, PixelOrder, SetColorDepthRequest, SetPhysicalSizeRequest,
+            SetPixelOrderRequest, SetVirtualOffsetRequest, SetVirtualSizeRequest,
+        },
+        Mailbox, ARM2VC,
     },
     println,
 };
 
 pub fn init_fb(width: u32, height: u32) -> FrameBuffer {
-    let frame_buffer_msg: A16<35> = A16::new([
-        35 * 4,
-        MSG_STATE_REQ,
-        TAG_SET_PHY_WH,
-        8,
-        0,
-        width,
-        height,
-        TAG_SET_VIRT_WH,
-        8,
-        0,
-        width,
-        height,
-        TAG_SET_VIRT_OFF,
-        8,
-        0,
-        0,
-        0,
-        TAG_SET_DEPTH,
-        4,
-        0,
-        32,
-        TAG_SET_PXL_ORDER,
-        4,
-        0,
-        1,
-        TAG_ALLOCATE_FB,
-        8,
-        0,
-        4096,
-        0,
-        TAG_GET_PITCH,
-        4,
-        0,
-        0,
-        TAG_LAST,
-    ]);
-    let fb = Mailbox::send_msg(ARM2VC, frame_buffer_msg);
+    let msg_req = Message::new()
+        .with_tag(SetPhysicalSizeRequest::new(width, height))
+        .with_tag(SetVirtualSizeRequest::new(width, height))
+        .with_tag(SetVirtualOffsetRequest::new(0, 0))
+        .with_tag(SetColorDepthRequest::new(ColorDepth::Rgba8))
+        .with_tag(SetPixelOrderRequest::new(PixelOrder::Rgb))
+        .with_tag(AllocateBufferRequest::new(4092))
+        .with_tag(GetPitchRequest);
 
-    println!("msg status: {:#010x}", fb.inner[1]);
-    println!("fb status: {:#010x}", fb.inner[27]);
-    println!("fb size: {}", fb.inner[29]);
+    let msg_res = Mailbox::send_msg(ARM2VC, msg_req);
 
-    let fb_ptr = (fb.inner[28] | 0x40000000) & 0x3FFFFFFF;
-    let fb_pitch = fb.inner[33];
+    let fb: &Tag<AllocateBufferResponse> = msg_res.get_tag();
+    let pitch: &Tag<GetPitchResponse> = msg_res.get_tag();
+
+    println!("msg status: {:#010x}", msg_res.state);
+    println!("fb status: {:#010x}", { fb.state });
+    println!("fb size: {}", { fb.data.size });
+
+    let fb_ptr = (fb.data.buffer_address | 0x40000000) & 0x3FFFFFFF;
+    let fb_pitch = pitch.data.pitch;
 
     println!("fb ptr: {:#010x}", fb_ptr);
     println!("fb pitch: {}", fb_pitch);

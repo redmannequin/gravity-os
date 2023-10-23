@@ -1,4 +1,19 @@
+pub mod cons;
+pub mod message;
+pub mod tag;
+
+pub mod tags {
+    pub mod framebuffer;
+}
+
+use core::fmt::Debug;
+
 use crate::{mmio_read, mmio_write, wait_cycles, MMIO_BASE};
+
+use self::{
+    message::Message,
+    tag::{IntoRes, IntoTag},
+};
 
 pub const MBOX_BASE: u32 = MMIO_BASE + 0x0000_B880;
 pub const MBOX_READ: u32 = MBOX_BASE;
@@ -47,10 +62,42 @@ impl Mailbox {
         let request = A16 {
             inner: [6 * 4, MSG_STATE_REQ, TAG_GET_FRIMWARE_REV, 4, 0, TAG_LAST],
         };
-        Self::send_msg(ARM2VC, request);
+        Self::send_a16(ARM2VC, request);
     }
 
-    pub fn send_msg<const N: usize>(ch: u8, msg: A16<N>) -> A16<N> {
+    pub fn send_msg<Tags>(
+        ch: u8,
+        msg: Message<Tags>,
+    ) -> Message<<<Tags as IntoTag>::Output as IntoRes>::Output>
+    where
+        Tags: IntoTag + Debug,
+        <Tags as IntoTag>::Output: IntoRes,
+    {
+        let msg = msg.into_tags();
+        let msg_ptr = {
+            let mbox_address: *const Message<<Tags as IntoTag>::Output> = &msg;
+            let mbox_address_int = mbox_address as usize;
+            ((mbox_address_int & !0xF) | (ch as usize)) as u32
+        };
+
+        Mailbox::write(ch, msg_ptr);
+        let _n = Mailbox::read(ch);
+
+        let mut msg: Message<<Tags as IntoTag>::Output> = unsafe { core::mem::zeroed() };
+        unsafe {
+            core::ptr::copy(
+                (msg_ptr & !0xF) as *const Message<Tags::Output>,
+                &mut msg as *mut _,
+                1,
+            );
+        };
+
+        wait_cycles(10);
+
+        msg.into_res()
+    }
+
+    fn send_a16<const N: usize>(ch: u8, msg: A16<N>) -> A16<N> {
         let msg_ptr = {
             let mbox_address: *const A16<N> = &msg;
             let mbox_address_int = mbox_address as usize;
